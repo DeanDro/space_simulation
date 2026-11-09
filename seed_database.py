@@ -14,6 +14,10 @@ DB_CONFIG = {
     "port": os.getenv("DB_PORT", "5432")
 }
 
+# Checking login gredentials 
+print("DB_USER:", os.getenv("DB_USER"))
+print("DB_PASSWORD:", os.getenv("DB_PASSWORD"))
+
 def seed_database():
     excel_path = 'raw_data/data.xlsx'
     if not os.path.exists(excel_path):
@@ -172,8 +176,11 @@ def seed_database():
         for sheet_name, table_name in sheet_to_table.items():
             df = pd.read_excel(excel_path, sheet_name=sheet_name)
             
-            # Clean up potential NaN values for columns we don't have data yet. For example DateDeath
+            # Replace all NaN, NaT, or infinite values with None so psycopg2 converts them to SQL NULL
             df = df.where(pd.notnull(df), None)
+
+            # Convert all dataframe column names to lowercase to match PostgreSQL table schema
+            df.columns = [c.lower() for c in df.columns]
 
             cols = list(df.columns)
             cols_str = ", ".join([f'"{c}"' for c in cols])
@@ -182,9 +189,16 @@ def seed_database():
             query = f'INSERT INTO {table_name} ({cols_str}) VALUES ({placeholders})'
             
             records = df.to_dict(orient='records')
-            cur.executemany(query, records)
+            
+            # Double-check record values to ensure any lingering float NaNs become Python None
+            cleaned_records = []
+            for record in records:
+                cleaned_record = {k: (None if pd.isna(v) else v) for k, v in record.items()}
+                cleaned_records.append(cleaned_record)
+
+            cur.executemany(query, cleaned_records)
             conn.commit()
-            print(f"Seeded {len(records)} rows into table '{table_name}'.")
+            print(f"Seeded {len(cleaned_records)} rows into table '{table_name}'.")
 
         print("Database successfully created and seeded securely!")
 
