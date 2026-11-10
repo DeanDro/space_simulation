@@ -21,7 +21,7 @@ app.add_middleware(
     allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["*"],
+    allow_headers=["*"]
 )
 
 def get_db_connection():
@@ -32,5 +32,58 @@ def get_db_connection():
     db_host=os.getenv("DB_HOST", "localhost"),
     db_port=os.getenv("DB_PORT", "5432")
 
-    
+    if not all([db_name, db_user, db_password]):
+        raise HTTPException(
+            status_code= 500,
+            detail= "Database environment variables are missing or are wrong"
+        )
 
+    try:
+        conn = psycopg2.connect(
+            dbname = db_name,
+            user = db_user,
+            password = db_password,
+            host = db_host,
+            port = db_port,
+            cursor_factory= RealDictCursor
+        )
+
+        return conn 
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database connection error {str(e)}")
+
+
+@app.get("/")
+def read_root():
+    return {"message": "Mars Colony Simulation API is online"}
+
+@app.get("api/colony/status")
+def get_colony_status():
+    conn = get_db_connection()
+    curr = conn.cursor()
+
+    # Get some general status updates for the colony
+    try:
+        curr.execute("SELECT COUNT(*) AS total_crew FROM Astronauts;")
+        crew_count = curr.fetchone()["total_crew"]
+
+        curr.execute("SELECT * FROM Habitat;")
+        habitats = curr.fetchall()
+
+        curr.execute("SELECT SUM(stocklbs) as total_food_stock FROM Nutritional;")
+        food_stock = curr.fetchone()["total_food_stock"]
+
+        curr.execute("SELECT description, currentstocklbs, purpose FROM Resources;")
+        resources = curr.fetchall()
+
+        return {
+            "colony_status": "Operational",
+            "active_crew_members": crew_count,
+            "habitats": habitats,
+            "total_food_stock_lbs": food_stock,
+            "resources": resources
+        }
+
+    finally:
+        curr.close()
+        conn.close()
