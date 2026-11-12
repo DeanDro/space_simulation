@@ -26,10 +26,10 @@ app.add_middleware(
 
 def get_db_connection():
 
-    db_name=os.getenv("DB_NAME").strip(" '\"()"),
-    db_user=os.getenv("DB_USER").strip(" '\"()"),
-    db_password=os.getenv("DB_PASSWORD").strip(" '\"()"),
-    db_host=os.getenv("DB_HOST", "localhost").strip(" '\"()"),
+    db_name=os.getenv("DB_NAME").strip(" '\"()")
+    db_user=os.getenv("DB_USER").strip(" '\"()")
+    db_password=os.getenv("DB_PASSWORD").strip(" '\"()")
+    db_host=os.getenv("DB_HOST", "localhost").strip(" '\"()")
     db_port=os.getenv("DB_PORT", "5432").strip(" '\"()")
 
     if not all([db_name, db_user, db_password]):
