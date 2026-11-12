@@ -29,6 +29,6 @@
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
     "**/*.mts"
-, "components/MarsCanva.jsx"  ],
+, "components/MarsCanva.jsx", "app/page.jsx"  ],
   "exclude": ["node_modules"]
 }
