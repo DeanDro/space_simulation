@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import MarsCanvas from "@/components/MarsCanva";
-import { Activity, Users, Utensils, ShieldAlert, Play, RefreshCw } from 'lucide-react';
+import { Activity, ArrowLeft, X, Users, Utensils, ShieldAlert, Play, RefreshCw } from 'lucide-react';
 
 
 export default function ColonyDashboard(){
@@ -12,11 +12,16 @@ export default function ColonyDashboard(){
   const [simulating, setSimulating] = useState(false);
   const [tickMessage, setTickMessage] = useState(null);
 
+  // Selecting habitat
+  const [selectedHabitat, setSelectedHabitat] = useState(null);
+  const [selectedAstronaut, setSelectedAstronaut] = useState(null);
+
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
 
   const fetchStatus = async () => {
     try{
       const res = await fetch(`${API_URL}/api/colony/status`);
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
       const data = await res.json();
       setStatus(data);
     } catch (err) {
@@ -62,9 +67,15 @@ export default function ColonyDashboard(){
     );
   }
 
+  // Filter astronauts in the selected habitat
+  const habitatCrew = selectedHabitat ? status?.astronauts?.filter(a=> a.fkfamily === selectedHabitat.fkfamily) || [] : [];
+
+
   return (
     <main className="min-h-screen bg-slate-950 text-slate-100 p-8 font-sans">
       <div className="max-w-7xl mx-auto space-y-8">
+        
+        {/* Header */}
         <header className="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-slate-800 pb-6 gap-4">
           <div>
             <h1 className="text-3xl font-extrabold tracking-tight text-orange-500 flex items-center gap-2">
@@ -81,12 +92,14 @@ export default function ColonyDashboard(){
             {simulating ? 'Advancing Sol...' : 'Advance +1 Sol'}
           </button>
         </header>
+
         {tickMessage && (
           <div className="bg-orange-950/40 border border-orange-500/30 text-orange-200 px-4 py-3 rounded-lg text-sm font-mono flex items-center justify-between">
             <span>📢 {tickMessage}</span>
           </div>
         )}
 
+        {/* Metrics Overview Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="bg-slate-900 border border-slate-800 p-6 rounded-xl shadow-lg flex items-center justify-between">
             <div>
@@ -109,6 +122,7 @@ export default function ColonyDashboard(){
               <Utensils className="w-6 h-6" />
             </div>
           </div>
+
           <div className="bg-slate-900 border border-slate-800 p-6 rounded-xl shadow-lg flex items-center justify-between">
             <div>
               <p className="text-slate-400 text-sm font-medium">Colony Status</p>
@@ -123,35 +137,137 @@ export default function ColonyDashboard(){
           </div>
         </div>
 
+        {/* Main Content Area: 3D Visualization + Dynamic Drill-Down Panel */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           
-          {/* Three.js 3D View */}
+          {/* Three.js 3D Surface View */}
           <div className="lg:col-span-2 space-y-4">
             <h2 className="text-lg font-semibold text-slate-200">Orbital Planetary View</h2>
             <MarsCanvas />
           </div>
 
+          {/* Habitat Status & Drill-Down Panel */}
           <div className="space-y-4">
-            <h2 className="text-lg font-semibold text-slate-200">Habitat Statuses</h2>
-            <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
-              {status?.habitats?.map((hab) => (
-                <div key={hab.pk} className="bg-slate-900 border border-slate-800 p-4 rounded-xl space-y-2">
-                  <div className="flex justify-between items-center">
-                    <span className="font-semibold text-slate-100">{hab.location}</span>
-                    <span className="text-xs bg-slate-800 text-slate-300 px-2 py-1 rounded">Family {hab.fkfamily}</span>
+            <div className="flex justify-between items-center">
+              <h2 className="text-lg font-semibold text-slate-200">
+                {selectedHabitat ? `Habitat: ${selectedHabitat.location}` : 'Habitat Statuses'}
+              </h2>
+              {selectedHabitat && (
+                <button 
+                  onClick={() => { setSelectedHabitat(null); setSelectedAstronaut(null); }}
+                  className="text-xs text-orange-400 hover:text-orange-300 flex items-center gap-1 cursor-pointer bg-slate-900 px-2.5 py-1 rounded border border-slate-800"
+                >
+                  <ArrowLeft className="w-3 h-3" /> Back to Habitats
+                </button>
+              )}
+            </div>
+
+            <div className="space-y-3 max-h-[420px] overflow-y-auto pr-2">
+              {!selectedHabitat ? (
+                // LIST OF HABITATS (Click to select)
+                status?.habitats?.map((hab) => (
+                  <div 
+                    key={hab.pk} 
+                    onClick={() => setSelectedHabitat(hab)}
+                    className="bg-slate-900 border border-slate-800 hover:border-orange-500/50 p-4 rounded-xl space-y-2 cursor-pointer transition-all shadow-md group"
+                  >
+                    <div className="flex justify-between items-center">
+                      <span className="font-semibold text-slate-100 group-hover:text-orange-400 transition-colors">{hab.location}</span>
+                      <span className="text-xs bg-slate-800 text-slate-300 px-2 py-1 rounded">Family Pod {hab.fkfamily}</span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 text-xs text-slate-400 pt-1 border-t border-slate-800/60">
+                      <div>Integrity: <span className="text-white font-mono">{hab.structuralintegrity}%</span></div>
+                      <div>Oxygen: <span className={hab.oxygensupply ? 'text-emerald-400 font-semibold' : 'text-red-400 font-semibold'}>{hab.oxygensupply ? 'OK' : 'FAIL'}</span></div>
+                      <div>Water: <span className={hab.watersupply ? 'text-emerald-400 font-semibold' : 'text-red-400 font-semibold'}>{hab.watersupply ? 'OK' : 'FAIL'}</span></div>
+                    </div>
                   </div>
-                  <div className="grid grid-cols-3 gap-2 text-xs text-slate-400 pt-1 border-t border-slate-800/60">
-                    <div>Integrity: <span className="text-white font-mono">{hab.structuralintegrity}%</span></div>
-                    <div>Oxygen: <span className={hab.oxygensupply ? 'text-emerald-400 font-semibold' : 'text-red-400 font-semibold'}>{hab.oxygensupply ? 'OK' : 'FAIL'}</span></div>
-                    <div>Water: <span className={hab.watersupply ? 'text-emerald-400 font-semibold' : 'text-red-400 font-semibold'}>{hab.watersupply ? 'OK' : 'FAIL'}</span></div>
-                  </div>
-                </div>
-              ))}
+                ))
+              ) : (
+                // LIST OF CREW MEMBERS IN SELECTED HABITAT (Click to inspect member)
+                habitatCrew.length === 0 ? (
+                  <p className="text-sm text-slate-400 p-4 text-center">No crew members assigned to this habitat pod.</p>
+                ) : (
+                  habitatCrew.map((crew) => (
+                    <div 
+                      key={crew.pk}
+                      onClick={() => setSelectedAstronaut(crew)}
+                      className="bg-slate-900 border border-slate-800 hover:border-blue-500/50 p-4 rounded-xl space-y-2 cursor-pointer transition-all shadow-md group"
+                    >
+                      <div className="flex justify-between items-center">
+                        <span className="font-semibold text-slate-100 group-hover:text-blue-400 transition-colors">
+                          {crew.firstname} {crew.lastname}
+                        </span>
+                        <span className="text-xs bg-blue-500/10 text-blue-400 px-2 py-1 rounded font-mono">{crew.profession}</span>
+                      </div>
+                      <p className="text-xs text-slate-400">Click to inspect individual health & consumption telemetry</p>
+                    </div>
+                  ))
+                )
+              )}
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+      {/* ASTRONAUT DETAIL MODAL / INSPECTION PANEL */}
+      {selectedAstronaut && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-6 space-y-6 shadow-2xl relative">
+            <button 
+              onClick={() => setSelectedAstronaut(null)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-white p-1 rounded-lg bg-slate-800 cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div>
+              <span className="text-xs font-mono text-orange-400 uppercase tracking-wider">Crew Telemetry Profile</span>
+              <h3 className="text-2xl font-bold text-white mt-1">
+                {selectedAstronaut.firstname} {selectedAstronaut.lastname}
+              </h3>
+              <p className="text-sm text-slate-400">Profession: <span className="text-slate-200 font-medium">{selectedAstronaut.description}</span></p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 pt-2">
+              <div className="bg-slate-950 border border-slate-800/80 p-4 rounded-xl">
+                <p className="text-xs text-slate-400">Daily Water Demand</p>
+                <p className="text-xl font-bold text-blue-400 mt-1">{selectedAstronaut.avgwaterconsumptionlt ?? 0} <span className="text-xs font-normal text-slate-400">L/day</span></p>
+              </div>
+
+              <div className="bg-slate-950 border border-slate-800/80 p-4 rounded-xl">
+                <p className="text-xs text-slate-400">Daily Oxygen Demand</p>
+                <p className="text-xl font-bold text-emerald-400 mt-1">{selectedAstronaut.avgoxygenconsumptionlbs ?? 0} <span className="text-xs font-normal text-slate-400">lbs/day</span></p>
+              </div>
+
+              <div className="bg-slate-950 border border-slate-800/80 p-4 rounded-xl">
+                <p className="text-xs text-slate-400">Daily Calorie Target</p>
+                <p className="text-xl font-bold text-orange-400 mt-1">{selectedAstronaut.avgdailycalories ?? 0} <span className="text-xs font-normal text-slate-400">kcal</span></p>
+              </div>
+
+              <div className="bg-slate-950 border border-slate-800/80 p-4 rounded-xl">
+                <p className="text-xs text-slate-400">Health Status</p>
+                <p className="text-sm font-semibold text-emerald-400 mt-2 flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-pulse"></span>
+                  {selectedAstronaut.healthstatus ?? 'Nominal'}
+                </p>
+              </div>
+            </div>
+
+            <div className="pt-2 flex justify-end">
+              <button 
+                onClick={() => setSelectedAstronaut(null)}
+                className="bg-slate-800 hover:bg-slate-700 text-white px-5 py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer"
+              >
+                Close Profile
+              </button>
             </div>
           </div>
         </div>
-      </div>
+      )}
+
     </main>
-  )
+  );
 
 }

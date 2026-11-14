@@ -40,15 +40,18 @@ function ColonyTerrain() {
 
 function OrbitingRover() {
   const roverRef = useRef();
+  const angleRef = useRef(0);
 
   // Animate the rover moving in an ellipse around the colony
-  useFrame(({ clock }) => {
-    const elapsedTime = clock.getElapsedTime() * 0.4;
-    const x = Math.cos(elapsedTime) * 3.5;
-    const z = Math.sin(elapsedTime) * 2.5;
-    roverRef.current.position.x = x;
-    roverRef.current.position.z = z;
-    roverRef.current.rotation.y = -elapsedTime;
+  useFrame((_, delta) => {
+    angleRef.current += delta * 0.4;
+    const x = Math.cos(angleRef.current) * 3.5;
+    const z = Math.sin(angleRef.current) * 2.5;
+    if (roverRef.current) {
+      roverRef.current.position.x = x;
+      roverRef.current.position.z = z;
+      roverRef.current.rotation.y = -angleRef.current;
+    }
   });
 
   return (
@@ -69,7 +72,6 @@ export default function MarsCanvas() {
   return (
     <div className="w-full h-[450px] bg-slate-950 rounded-xl overflow-hidden border border-slate-800 shadow-2xl relative">
       <Canvas camera={{ position: [0, 3, 7], fov: 50 }}>
-        {/* Martian Atmospheric Lighting */}
         <ambientLight intensity={0.4} color="#ffd8b8" />
         <directionalLight position={[10, 20, 10]} intensity={1.8} color="#ffedd5" />
         <pointLight position={[-5, 2, -5]} intensity={0.5} color="#ea580c" />
@@ -79,7 +81,7 @@ export default function MarsCanvas() {
 
         <OrbitControls 
           enableZoom={true} 
-          maxPolarAngle={Math.PI / 2 - 0.05} // Prevent camera from going below ground
+          maxPolarAngle={Math.PI / 2 - 0.05}
           minDistance={3}
           maxDistance={12}
         />

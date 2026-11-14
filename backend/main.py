@@ -4,15 +4,27 @@ from psycopg2.extras import RealDictCursor
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
+from contextlib import asynccontextmanager
+from .init_db import reset_colony_resources
 
 
 # loading the .env file with environment variables
 load_dotenv()
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # This will automatically update resources to the volume for 100 people for 6 months
+    try:
+        reset_colony_resources()
+    except Exception as e:
+        print(f"Failed to reset resources: {e}")
+    yield
+
 app = FastAPI(
     title="Mars Colony Simulation API",
     version="1.0.0",
-    description="Backend engine for tracking colony information"
+    description="Backend engine for tracking colony information",
+    lifespan= lifespan
 )
 
 # Enabling CORS so frontend can talk to the backend
@@ -70,6 +82,18 @@ def get_colony_status():
         curr.execute("SELECT * FROM Habitat;")
         habitats = curr.fetchall()
 
+        # Code to fetch all astronauts with health records to make habitat clickable in the dashboard
+        curr.execute(
+            """
+            SELECT a.pk, a.firstname, a.lastname, p.description, a.fkfamily,
+                h.avgwaterconsumptionlt, h.avgoxygenconsumptionlbs, h.avgdailycalories
+            FROM Astronauts a
+            LEFT JOIN HealthRecords h ON a.fkhealth = h.pk
+            LEFT JOIN Professions p ON a.fkprofession = p.pk;
+            """
+        )
+        astronauts = curr.fetchall()
+
         curr.execute("SELECT SUM(stocklbs) as total_food_stock FROM Nutritional;")
         food_stock = curr.fetchone()["total_food_stock"]
 
@@ -80,6 +104,7 @@ def get_colony_status():
             "colony_status": "Operational",
             "active_crew_members": crew_count,
             "habitats": habitats,
+            "astronauts": astronauts,
             "total_food_stock_lbs": food_stock,
             "resources": resources
         }
