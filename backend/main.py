@@ -142,8 +142,15 @@ def get_colony_status():
 @app.post("/api/colony/simulation-tick")
 def simulate_tick(days: int = 1):
     """
-    Simulates the passing of time by `days` Sol(s), calculates resource consumption,
-    and updates inventory.
+    Simulate the pass of 18 months in the colony which is the time for the next mission from earth.
+    Assumptions: 
+    - For the first 3 years after the first colony, each mission will have 100 people, 
+    - Between the first 3 and 5 years, each mission will have 1000 people, 
+    - After first 5 years, each mission will send 10000 people, 
+    - Average birth rate at 0.06
+    - Average death rate at 0.01
+    - Average marriage rate at 0.14
+    - Only first 2 missions will only include couples, after that only half of people will be couples
     """
     conn = get_db_connection()
     cur = conn.cursor()
@@ -168,8 +175,8 @@ def simulate_tick(days: int = 1):
         consumed_water = float(metrics["total_daily_water"] or 0) * days
         consumed_oxygen = float(metrics["total_daily_oxygen"] or 0) * days
         consumed_calories = float(metrics["total_daily_calories"] or 0) * days
-
         food_depletion_lbs = consumed_calories * 0.0005
+
         cur.execute(
             """
             UPDATE Nutritional
