@@ -11,6 +11,10 @@ export default function ColonyDashboard(){
   const [loading, setLoading] = useState(true);
   const [simulating, setSimulating] = useState(false);
   const [tickMessage, setTickMessage] = useState(null);
+  const dbPopulation =status?.total_population ??
+  status?.active_crew_members ??
+  status?.astronauts?.length ??
+  0;
 
   // Selecting habitat
   const [selectedHabitat, setSelectedHabitat] = useState(null);
@@ -143,7 +147,7 @@ export default function ColonyDashboard(){
           {/* Three.js 3D Surface View */}
           <div className="lg:col-span-2 space-y-4">
             <h2 className="text-lg font-semibold text-slate-200">Orbital Planetary View</h2>
-            <MarsCanvas />
+            <MarsCanvas population={dbPopulation}/>
           </div>
 
           {/* Habitat Status & Drill-Down Panel */}
